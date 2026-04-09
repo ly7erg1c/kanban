@@ -80,6 +80,7 @@ function createRuntimeConfig(selectedAgentId: RuntimeConfigResponse["selectedAge
 		selectedAgentId,
 		selectedShortcutLabel: null,
 		agentAutonomousModeEnabled: true,
+		agentModelId: null,
 		effectiveCommand: null,
 		globalConfigPath: "/tmp/global-config.json",
 		projectConfigPath: "/tmp/project-config.json",

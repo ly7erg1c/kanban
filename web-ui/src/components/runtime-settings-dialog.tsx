@@ -301,6 +301,7 @@ export function RuntimeSettingsDialog({
 	const { resetLayoutCustomizations } = useLayoutCustomizations();
 	const [selectedAgentId, setSelectedAgentId] = useState<RuntimeAgentId>("claude");
 	const [agentAutonomousModeEnabled, setAgentAutonomousModeEnabled] = useState(true);
+	const [agentModelId, setAgentModelId] = useState<string>("");
 	const [readyForReviewNotificationsEnabled, setReadyForReviewNotificationsEnabled] = useState(true);
 	const [initialThemeId, setInitialThemeId] = useState<ThemeId>(readStoredThemeId);
 	const [draftThemeId, setDraftThemeId] = useState<ThemeId>(readStoredThemeId);
@@ -367,6 +368,7 @@ export function RuntimeSettingsDialog({
 	const fallbackAgentId = firstInstalledAgentId ?? displayedAgents[0]?.id ?? "claude";
 	const initialSelectedAgentId = configuredAgentId ?? fallbackAgentId;
 	const initialAgentAutonomousModeEnabled = config?.agentAutonomousModeEnabled ?? true;
+	const initialAgentModelId = config?.agentModelId ?? "";
 	const initialReadyForReviewNotificationsEnabled = config?.readyForReviewNotificationsEnabled ?? true;
 	const initialShortcuts = config?.shortcuts ?? [];
 	const initialCommitPromptTemplate = config?.commitPromptTemplate ?? "";
@@ -391,6 +393,9 @@ export function RuntimeSettingsDialog({
 			return true;
 		}
 		if (agentAutonomousModeEnabled !== initialAgentAutonomousModeEnabled) {
+			return true;
+		}
+		if (agentModelId !== initialAgentModelId) {
 			return true;
 		}
 		if (readyForReviewNotificationsEnabled !== initialReadyForReviewNotificationsEnabled) {
@@ -420,12 +425,14 @@ export function RuntimeSettingsDialog({
 		);
 	}, [
 		agentAutonomousModeEnabled,
+		agentModelId,
 		clineMcpSettings.hasUnsavedChanges,
 		clineSettings.hasUnsavedChanges,
 		commitPromptTemplate,
 		config,
 		draftThemeId,
 		initialAgentAutonomousModeEnabled,
+		initialAgentModelId,
 		initialCommitPromptTemplate,
 		initialOpenPrPromptTemplate,
 		initialReadyForReviewNotificationsEnabled,
@@ -444,6 +451,7 @@ export function RuntimeSettingsDialog({
 		}
 		setSelectedAgentId(configuredAgentId ?? fallbackAgentId);
 		setAgentAutonomousModeEnabled(config?.agentAutonomousModeEnabled ?? true);
+		setAgentModelId(config?.agentModelId ?? "");
 		setReadyForReviewNotificationsEnabled(config?.readyForReviewNotificationsEnabled ?? true);
 		setShortcuts(config?.shortcuts ?? []);
 		setCommitPromptTemplate(config?.commitPromptTemplate ?? "");
@@ -451,6 +459,7 @@ export function RuntimeSettingsDialog({
 		setSaveError(null);
 	}, [
 		config?.agentAutonomousModeEnabled,
+		config?.agentModelId,
 		config?.commitPromptTemplate,
 		config?.openPrPromptTemplate,
 		config?.readyForReviewNotificationsEnabled,
@@ -582,6 +591,7 @@ export function RuntimeSettingsDialog({
 		const saved = await save({
 			selectedAgentId,
 			agentAutonomousModeEnabled,
+			agentModelId: agentModelId.trim() || null,
 			readyForReviewNotificationsEnabled,
 			shortcuts,
 			commitPromptTemplate,
@@ -686,6 +696,26 @@ export function RuntimeSettingsDialog({
 				<p className="text-text-secondary text-[13px] ml-6 mt-0 mb-0">
 					Allows agents to use tools without stopping for permission. Use at your own risk.
 				</p>
+
+				{selectedAgentId !== "cline" ? (
+					<div className="mt-3">
+						<label htmlFor="runtime-settings-model-id" className="block text-[13px] text-text-secondary mb-1">
+							Model (optional)
+						</label>
+						<input
+							id="runtime-settings-model-id"
+							type="text"
+							value={agentModelId}
+							onChange={(event) => setAgentModelId(event.target.value)}
+							disabled={controlsDisabled}
+							placeholder="e.g. claude-sonnet-4-6"
+							className="w-full rounded-md border border-border bg-surface-2 px-2 py-1.5 text-sm text-text-primary placeholder:text-text-tertiary focus:border-border-focus focus:outline-none disabled:opacity-40"
+						/>
+						<p className="text-text-secondary text-[13px] mt-1 mb-0">
+							Override the default model used by the agent CLI. Leave empty to use the agent&apos;s default.
+						</p>
+					</div>
+				) : null}
 
 				{selectedAgentId === "cline" ? (
 					<ClineSetupSection

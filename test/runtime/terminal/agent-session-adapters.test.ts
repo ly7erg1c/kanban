@@ -98,7 +98,7 @@ describe("prepareAgentLaunch hook strategies", () => {
 
 		expect(launch.env.KANBAN_HOOK_TASK_ID).toBe("task-cursor");
 		expect(launch.env.KANBAN_HOOK_WORKSPACE_ID).toBe("workspace-1");
-		expect(launch.args).not.toContain("--settings");
+		expect(launch.args).toContain("--settings");
 	});
 
 	it("appends Kanban sidebar instructions for home Claude sessions", async () => {

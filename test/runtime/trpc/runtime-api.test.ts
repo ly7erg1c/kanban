@@ -127,6 +127,7 @@ function createRuntimeConfigState(): RuntimeConfigState {
 		selectedAgentId: "claude",
 		selectedShortcutLabel: null,
 		agentAutonomousModeEnabled: true,
+		agentModelId: null,
 		readyForReviewNotificationsEnabled: true,
 		shortcuts: [],
 		commitPromptTemplate: "commit",

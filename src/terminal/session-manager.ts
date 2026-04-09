@@ -81,6 +81,7 @@ export interface StartTaskSessionRequest {
 	binary: string;
 	args: string[];
 	autonomousModeEnabled?: boolean;
+	modelId?: string | null;
 	cwd: string;
 	prompt: string;
 	images?: RuntimeTaskImage[];
@@ -327,6 +328,7 @@ export class TerminalSessionManager implements TerminalSessionService {
 			binary: request.binary,
 			args: request.args,
 			autonomousModeEnabled: request.autonomousModeEnabled,
+			modelId: request.modelId,
 			cwd: request.cwd,
 			prompt: request.prompt,
 			images: request.images,

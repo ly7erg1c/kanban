@@ -29,6 +29,7 @@ export interface AgentAdapterLaunchInput {
 	binary?: string;
 	args: string[];
 	autonomousModeEnabled?: boolean;
+	modelId?: string | null;
 	cwd: string;
 	prompt: string;
 	images?: RuntimeTaskImage[];
@@ -651,6 +652,10 @@ const claudeAdapter: AgentSessionAdapter = {
 			args.push("--permission-mode", "plan");
 		}
 
+		if (input.modelId && !hasCliOption(args, "--model")) {
+			args.push("--model", input.modelId);
+		}
+
 		const hooks = resolveHookContext(input);
 		if (hooks) {
 			const settingsPath = join(getHookAgentDirectory("claude"), "settings.json");
@@ -771,8 +776,62 @@ const cursorAdapter: AgentSessionAdapter = {
 			args.push(...withoutModeOrForceArgs, "--plan");
 		}
 
+		if (input.modelId && !hasCliOption(args, "--model")) {
+			args.push("--model", input.modelId);
+		}
+
 		const hooks = resolveHookContext(input);
 		if (hooks) {
+			const settingsPath = join(getHookAgentDirectory("cursor"), "settings.json");
+			const hooksSettings = {
+				hooks: {
+					Stop: [{ hooks: [{ type: "command", command: buildHookCommand("to_review", { source: "cursor" }) }] }],
+					SubagentStop: [
+						{ hooks: [{ type: "command", command: buildHookCommand("activity", { source: "cursor" }) }] },
+					],
+					PreToolUse: [
+						{
+							matcher: "*",
+							hooks: [{ type: "command", command: buildHookCommand("activity", { source: "cursor" }) }],
+						},
+					],
+					PermissionRequest: [
+						{
+							matcher: "*",
+							hooks: [{ type: "command", command: buildHookCommand("to_review", { source: "cursor" }) }],
+						},
+					],
+					PostToolUse: [
+						{
+							matcher: "*",
+							hooks: [{ type: "command", command: buildHookCommand("to_in_progress", { source: "cursor" }) }],
+						},
+					],
+					PostToolUseFailure: [
+						{
+							matcher: "*",
+							hooks: [{ type: "command", command: buildHookCommand("to_in_progress", { source: "cursor" }) }],
+						},
+					],
+					Notification: [
+						{
+							matcher: "permission_prompt",
+							hooks: [{ type: "command", command: buildHookCommand("to_review", { source: "cursor" }) }],
+						},
+						{
+							matcher: "*",
+							hooks: [{ type: "command", command: buildHookCommand("activity", { source: "cursor" }) }],
+						},
+					],
+					UserPromptSubmit: [
+						{
+							hooks: [{ type: "command", command: buildHookCommand("to_in_progress", { source: "cursor" }) }],
+						},
+					],
+				},
+			};
+			await ensureTextFile(settingsPath, JSON.stringify(hooksSettings, null, 2));
+			args.push("--settings", settingsPath);
 			Object.assign(
 				env,
 				createHookRuntimeEnv({
