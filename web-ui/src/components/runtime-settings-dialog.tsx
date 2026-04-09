@@ -8,6 +8,8 @@ import { getRuntimeAgentCatalogEntry, getRuntimeLaunchSupportedAgentCatalog } fr
 import { areRuntimeProjectShortcutsEqual } from "@runtime-shortcuts";
 import { Check, ChevronDown, Circle, CircleDot, ExternalLink, Plus, Settings, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AGENT_MODEL_OPTIONS, AGENT_RECOMMENDED_MODEL_IDS } from "@/components/agent-model-picker-options";
+import { SearchSelectDropdown } from "@/components/search-select-dropdown";
 import { ClineSetupSection } from "@/components/shared/cline-setup-section";
 import {
 	getRuntimeShortcutIconComponent,
@@ -699,20 +701,24 @@ export function RuntimeSettingsDialog({
 
 				{selectedAgentId !== "cline" ? (
 					<div className="mt-3">
-						<label htmlFor="runtime-settings-model-id" className="block text-[13px] text-text-secondary mb-1">
-							Model (optional)
-						</label>
-						<input
-							id="runtime-settings-model-id"
-							type="text"
-							value={agentModelId}
-							onChange={(event) => setAgentModelId(event.target.value)}
+						<p className="block text-[13px] text-text-secondary mb-1">Model (optional)</p>
+						<SearchSelectDropdown
+							options={AGENT_MODEL_OPTIONS}
+							selectedValue={agentModelId || null}
+							onSelect={(value) => setAgentModelId(value)}
 							disabled={controlsDisabled}
-							placeholder="e.g. claude-sonnet-4-6"
-							className="w-full rounded-md border border-border bg-surface-2 px-2 py-1.5 text-sm text-text-primary placeholder:text-text-tertiary focus:border-border-focus focus:outline-none disabled:opacity-40"
+							fill
+							size="sm"
+							emptyText="Default (no override)"
+							noResultsText="No matching models"
+							placeholder="Search models..."
+							showSelectedIndicator
+							recommendedOptionValues={AGENT_RECOMMENDED_MODEL_IDS}
+							recommendedHeading="Recommended"
+							footerAction={{ label: "Use agent default", onClick: () => setAgentModelId("") }}
 						/>
 						<p className="text-text-secondary text-[13px] mt-1 mb-0">
-							Override the default model used by the agent CLI. Leave empty to use the agent&apos;s default.
+							Override the default model used by the agent CLI.
 						</p>
 					</div>
 				) : null}
