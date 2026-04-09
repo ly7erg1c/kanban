@@ -752,6 +752,10 @@ const cursorAdapter: AgentSessionAdapter = {
 			args.push("--force");
 		}
 
+		if (!hasCliOption(args, "--yolo")) {
+			args.push("--yolo");
+		}
+
 		if (input.resumeFromTrash && !hasCliOption(args, "--resume") && !hasCliOption(args, "--continue")) {
 			args.push("--continue");
 		}
@@ -782,56 +786,6 @@ const cursorAdapter: AgentSessionAdapter = {
 
 		const hooks = resolveHookContext(input);
 		if (hooks) {
-			const settingsPath = join(getHookAgentDirectory("cursor"), "settings.json");
-			const hooksSettings = {
-				hooks: {
-					Stop: [{ hooks: [{ type: "command", command: buildHookCommand("to_review", { source: "cursor" }) }] }],
-					SubagentStop: [
-						{ hooks: [{ type: "command", command: buildHookCommand("activity", { source: "cursor" }) }] },
-					],
-					PreToolUse: [
-						{
-							matcher: "*",
-							hooks: [{ type: "command", command: buildHookCommand("activity", { source: "cursor" }) }],
-						},
-					],
-					PermissionRequest: [
-						{
-							matcher: "*",
-							hooks: [{ type: "command", command: buildHookCommand("to_review", { source: "cursor" }) }],
-						},
-					],
-					PostToolUse: [
-						{
-							matcher: "*",
-							hooks: [{ type: "command", command: buildHookCommand("to_in_progress", { source: "cursor" }) }],
-						},
-					],
-					PostToolUseFailure: [
-						{
-							matcher: "*",
-							hooks: [{ type: "command", command: buildHookCommand("to_in_progress", { source: "cursor" }) }],
-						},
-					],
-					Notification: [
-						{
-							matcher: "permission_prompt",
-							hooks: [{ type: "command", command: buildHookCommand("to_review", { source: "cursor" }) }],
-						},
-						{
-							matcher: "*",
-							hooks: [{ type: "command", command: buildHookCommand("activity", { source: "cursor" }) }],
-						},
-					],
-					UserPromptSubmit: [
-						{
-							hooks: [{ type: "command", command: buildHookCommand("to_in_progress", { source: "cursor" }) }],
-						},
-					],
-				},
-			};
-			await ensureTextFile(settingsPath, JSON.stringify(hooksSettings, null, 2));
-			args.push("--settings", settingsPath);
 			Object.assign(
 				env,
 				createHookRuntimeEnv({
