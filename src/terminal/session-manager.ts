@@ -61,6 +61,9 @@ interface ActiveProcessState {
 	awaitingCodexPromptAfterEnter: boolean;
 	autoConfirmedWorkspaceTrust: boolean;
 	workspaceTrustConfirmTimer: NodeJS.Timeout | null;
+	inactivityReviewTimeoutMs: number | null;
+	inactivityReviewTimer: NodeJS.Timeout | null;
+	hasReceivedSignificantOutput: boolean;
 }
 
 interface SessionEntry {
@@ -407,6 +410,30 @@ export class TerminalSessionManager implements TerminalSessionService {
 					}
 					updateSummary(entry, { lastOutputAt: now() });
 
+					// Inactivity-based review transition for agents that stay alive after task completion.
+					if (entry.active.inactivityReviewTimeoutMs !== null && entry.summary.state === "running") {
+						if (!entry.active.hasReceivedSignificantOutput && filteredChunk.byteLength > 100) {
+							entry.active.hasReceivedSignificantOutput = true;
+						}
+						if (entry.active.hasReceivedSignificantOutput) {
+							if (entry.active.inactivityReviewTimer !== null) {
+								clearTimeout(entry.active.inactivityReviewTimer);
+							}
+							entry.active.inactivityReviewTimer = setTimeout(() => {
+								const currentEntry = this.entries.get(request.taskId);
+								if (!currentEntry?.active || currentEntry.summary.state !== "running") {
+									return;
+								}
+								currentEntry.active.inactivityReviewTimer = null;
+								const summary = this.applySessionEvent(currentEntry, { type: "hook.to_review" });
+								for (const taskListener of currentEntry.listeners.values()) {
+									taskListener.onState?.(cloneSummary(summary));
+								}
+								this.emitSummary(summary);
+							}, entry.active.inactivityReviewTimeoutMs);
+						}
+					}
+
 					// Codex plan-mode startup input is deferred until we know the TUI rendered.
 					// Trigger on either the interactive prompt marker or the startup header text.
 					if (
@@ -454,6 +481,10 @@ export class TerminalSessionManager implements TerminalSessionService {
 						return;
 					}
 					stopWorkspaceTrustTimers(currentActive);
+					if (currentActive.inactivityReviewTimer !== null) {
+						clearTimeout(currentActive.inactivityReviewTimer);
+						currentActive.inactivityReviewTimer = null;
+					}
 
 					const summary = this.applySessionEvent(currentEntry, {
 						type: "process.exit",
@@ -527,9 +558,15 @@ export class TerminalSessionManager implements TerminalSessionService {
 			awaitingCodexPromptAfterEnter: false,
 			autoConfirmedWorkspaceTrust: false,
 			workspaceTrustConfirmTimer: null,
+			inactivityReviewTimeoutMs: launch.inactivityReviewTimeoutMs ?? null,
+			inactivityReviewTimer: null,
+			hasReceivedSignificantOutput: false,
 		};
 		entry.active = active;
 		entry.terminalStateMirror = terminalStateMirror;
+		if (launch.suppressAutoRestart) {
+			entry.suppressAutoRestartOnExit = true;
+		}
 
 		const startedAt = now();
 		updateSummary(entry, {
@@ -680,6 +717,9 @@ export class TerminalSessionManager implements TerminalSessionService {
 			awaitingCodexPromptAfterEnter: false,
 			autoConfirmedWorkspaceTrust: false,
 			workspaceTrustConfirmTimer: null,
+			inactivityReviewTimeoutMs: null,
+			inactivityReviewTimer: null,
+			hasReceivedSignificantOutput: false,
 		};
 		entry.active = active;
 		entry.terminalStateMirror = terminalStateMirror;
@@ -957,6 +997,13 @@ export class TerminalSessionManager implements TerminalSessionService {
 		}
 		if (entry.active && transition.changed && transition.patch.state === "awaiting_review") {
 			entry.active.awaitingCodexPromptAfterEnter = false;
+			if (entry.active.inactivityReviewTimer !== null) {
+				clearTimeout(entry.active.inactivityReviewTimer);
+				entry.active.inactivityReviewTimer = null;
+			}
+		}
+		if (entry.active && transition.changed && transition.patch.state === "running") {
+			entry.active.hasReceivedSignificantOutput = false;
 		}
 		return updateSummary(entry, transition.patch);
 	}

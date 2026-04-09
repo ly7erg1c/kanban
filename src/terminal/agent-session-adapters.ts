@@ -8,6 +8,7 @@ import type {
 	RuntimeTaskImage,
 	RuntimeTaskSessionSummary,
 } from "../core/api-contract";
+import { isHomeAgentSessionId } from "../core/home-agent-session";
 import { buildKanbanCommandParts } from "../core/kanban-command";
 import { quoteShellArg } from "../core/shell";
 import { lockedFileSystem } from "../fs/locked-file-system";
@@ -54,6 +55,9 @@ export interface PreparedAgentLaunch {
 	deferredStartupInput?: string;
 	detectOutputTransition?: AgentOutputTransitionDetector;
 	shouldInspectOutputForTransition?: AgentOutputTransitionInspectionPredicate;
+	suppressAutoRestart?: boolean;
+	/** When set, fires hook.to_review after this many ms of output inactivity while running. */
+	inactivityReviewTimeoutMs?: number;
 }
 
 interface HookContext {
@@ -739,7 +743,10 @@ const claudeAdapter: AgentSessionAdapter = {
 const cursorAdapter: AgentSessionAdapter = {
 	async prepare(input) {
 		const args = [...input.args];
-		const env: Record<string, string | undefined> = {};
+		const env: Record<string, string | undefined> = {
+			FORCE_COLOR: "1",
+			FORCE_HYPERLINK: "1",
+		};
 		const appendedSystemPrompt = resolveHomeAgentAppendSystemPrompt(input.taskId);
 
 		if (
@@ -795,6 +802,7 @@ const cursorAdapter: AgentSessionAdapter = {
 			);
 		}
 
+		const isTaskSession = !isHomeAgentSessionId(input.taskId);
 		const mergedPrompt = mergeCursorPromptWithHomeSystemPrompt(input.prompt, appendedSystemPrompt);
 		const withPromptLaunch = withPrompt(args, mergedPrompt, "append");
 		return {
@@ -803,6 +811,7 @@ const cursorAdapter: AgentSessionAdapter = {
 				...withPromptLaunch.env,
 				...env,
 			},
+			...(isTaskSession ? { inactivityReviewTimeoutMs: 5000 } : {}),
 		};
 	},
 };
